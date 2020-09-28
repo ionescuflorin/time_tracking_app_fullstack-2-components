@@ -239,3 +239,72 @@ class TimersDashboard extends React.Component {
 ```
 - We use a function defined in **helpers.js, renderElapsedString()**. 
 - The string it renders is in the format ‘HH:MM:SS’.
+
+---
+
+#### #3.1. [STEP 3]: DETERMINE WHAT SHOULD BE STATEFUL
+
+##### TimersDashboard
+- In our static app, this declares two child components. 
+- It sets **one prop**, which is the **isOpen boolean** that is **passed down to ToggleableTimerForm**.
+  
+##### EditableTimerList
+- This **declares two child components**, each which have props corresponding to a given timer’s properties.
+
+##### EditableTimer
+- This uses the prop **editFormOpen**. 
+
+##### Timer
+- This uses **all the props for a timer**. 
+
+##### TimerForm
+- This has **two interactive input fields**, one for **title** and one for **project**. 
+- When editing an existing timer, these fields are initialized with the timer’s current values.
+
+##### STATE CRITERIA
+- We can apply criteria to determine if data should be stateful:
+
+**1. Is it passed in from a parent via props? If so, it probably isn’t state.**
+- A lot of the data used in our child components are already listed in their parents. 
+- This criterion helps us de-duplicate.
+- For example, “timer properties” is listed multiple times. 
+- When we see the properties declared in EditableTimerList, we can consider it state. But when we see it elsewhere, it’s not.
+  
+**2. Does it change over time? If not, it probably isn’t state.**
+- This is a key criterion of stateful data: it changes.
+
+**3. Can you compute it based on any other state or props in your component? If so, it’s not state.**
+- For simplicity, we want to strive to represent state with as few data points as possible.
+
+
+##### APPLYING THE CRITERIA
+
+##### TimersDashboard
+- *isOpen boolean for ToggleableTimerForm*
+- **Stateful**. 
+- The data is defined here. 
+- It changes over time. 
+- And it cannot be computed from other state or props.
+
+##### EditableTimerList
+- *Timer properties*
+- **Stateful**. 
+- The data is defined in this component, changes over time, and cannot be computed from other state or props.
+
+##### EditableTimer
+- *editFormOpen for a given timer*
+- **Stateful**. 
+- The data is defined in this component, changes over time, and cannot be computed from other state or props.
+  
+##### Timer
+- *Timer properties*
+- In this context, **not stateful**. 
+- Properties are passed down from the parent.
+  
+##### TimerForm
+- We might be tempted to conclude that TimerForm doesn’t manage any stateful data, as title and project are props passed down from the parent. 
+- However, as we’ll see, forms are special state managers in their own right.
+- So, outside of TimerForm, we’ve identified our stateful data:
+  - The list of timers and properties of each timer
+  - Whether or not the edit form of a timer is open 
+  - Whether or not the create form is open
