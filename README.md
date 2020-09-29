@@ -559,3 +559,91 @@ We are going to need inverse data flow in two areas:
   1. handleCreateFormSubmit() will handle creates and will be the function passed to ToggleableTimerForm
   2. handleEditFormSubmit() will handle updates and will be the function passed to EditableTimerList
 - Both functions travel down their respective component hierarchies until they reach TimerForm as the prop onFormSubmit().
+
+---
+
+#### #6.2. Updating Timers
+
+##### Adding editability to Timer
+- To notify our app that the user wants to edit a timer we need to add an onClick at-
+tribute to the span tag of the edit button. 
+We anticipate a prop-function, onEditClick():
+
+##### Updating EditableTimer
+- Now we’re prepared to update **EditableTimer**. 
+- Again, it will display either the **TimerForm** (if we’re editing) or an individual **Timer** (if we’re not editing).
+- Let’s add event handlers for both possible child components. 
+- For **TimerForm**, we want to handle the form being closed or submitted. 
+- For **Timer**, we want to handle the edit icon being pressed:
+
+##### Updating EditableTimerList
+- Moving up a level, we make a one-line addition to **EditableTimerList** to send the submit function from **TimersDashboard** to each **EditableTimer**
+- **EditableTimerList** doesn’t need to do anything with this event so again we just pass the function on directly.
+
+##### Defining onEditFormSubmit() in TimersDashboard
+- Last step with this pipeline is to define and pass down the submit function for edit forms in **TimersDashboard**.
+- For **creates**, we have a function that creates a new timer object with the specified attributes and we append this new object to the end of the timers array in the state.
+- For **updates**, we need to hunt through the timers array until we find the timer object that is being updated. As mentioned in the last chapter, the state object cannot be updated directly. We have to use setState().
+- Therefore, we’ll use **map()** to traverse the array of timer objects. If the timer’s id matches that of the form submitted, we’ll return a new object that contains the timer with the updated attributes. Otherwise we’ll just return the original timer. This new array of timer objects will be passed to setState():
+- Remember, it’s important here that we treat state as **immutable**. By creating a new timers object and then using O**bject#assign()** to populate it, we’re not modifying any of the objects sitting in state.
+
+#### #6.3. Deleting Timers
+- In **Timer**, we define a function to handle **trash** button click events.
+- We’ve yet to define the function that will be set as the prop **onTrashClick()**
+- But you can imagine that when this event reaches the top (TimersDashboard), we’re going to need the id to sort out which timer is being deleted. handleTrashClick() provides the id to this function.
+
+##### Implementing the delete function in TimersDashboard
+- The last step is to define the function in TimersDashboard that deletes the desired timer from the state array.
+- deleteTimer() uses Array’s filter() method to return a new array with the timer object that has an id matching timerId removed:
+- Finally, we pass down handleTrashClick() as a prop:
+
+##### Adding timing functionality
+- There are several different ways we can implement a timer system. The simplest approach would be to have a function update the elapsed property on each timer every second. But this is severely limited. What happens when the app is closed? The timer should continue “running.”
+- This is why we’ve included the timer property runningSince. A timer is initialized with elapsed equal to 0. When a user clicks “Start”, we do not increment elapsed. Instead, we just set runningSince to the start time.
+- We can then use the difference between the start time and the current time to render the time for the user. When the user clicks “Stop”, the difference between the start time and the current time is added to elapsed. runningSince is set to null.
+- Therefore, at any given time, we can derive how long the timer has been running by taking Date.now() - runningSince and adding it to the total accumulated time (elapsed). We’ll calculate this inside the Timer component.
+- For the app to truly feel like a running timer, we want React to constantly perform this operation and re-render the timers. But elapsed and runningSince will not be changing while the timer is running. So the one mechanism we’ve seen so far to trigger a render() call will not be sufficient.
+- Instead, we can use React’s forceUpdate() method. This forces a React component to re-render. We can call it on an interval to yield the smooth appearance of a live timer.
+
+##### Adding a forceUpdate() interval to Timer
+- helpers.renderElapsedString() accepts an optional second argument, runningSince. It will add the delta of Date.now() - runningSince to elapsed and use the function millisecondsToHuman() to return a string formatted as HH:MM:SS.
+We will establish an interval to run forceUpdate() after the component mounts
+- In componentDidMount(), we use the JavaScript function setInterval(). This will invoke the function forceUpdate() once every 50 ms, causing the component to re- render. We set the return of setInterval() to this.forceUpdateInterval.
+- In componentWillUnmount(), we use clearInterval() to stop the interval this.forceUpdateInte componentWillUnmount() is called before a component is removed from the app. This
+will happen if a timer is deleted. We want to ensure we do not continue calling forceUpdate() after the timer has been removed from the page. React will throw
+errors.
+
+##### Add start and stop functionality
+- The action button at the bottom of each timer should display “Start” if the timer is paused and “Stop” if the timer is running. 
+- It should also propagate events when clicked, depending on if the timer is being stopped or started.
+- We could build all of this functionality into Timer.
+
+##### Add timer action events to Timer
+- Let’s modify Timer, anticipating a new component called TimerActionButton. 
+- This button just needs to know if the timer is running. It also needs to be able to propagate two events, onStartClick() and onStopClick(). 
+- These events will eventually need to make it all the way up to TimersDashboard, which can modify runningSince on the timer.
+
+##### Create TimerActionButton
+- We render one HTML snippet or another based on this.props.timerIsRunning.
+- You know the drill. Now we run these events up the component hierarchy, all the way up to TimersDashboard where we’re managing state:
+
+##### Run the events through EditableTimer and EditableTimerList
+
+#### METHODOLOGY REVIEW
+1. Break the app into components
+We mapped out the component structure of our app by examining the app’s working UI. We then applied the single-responsibility principle to break com- ponents down so that each had minimal viable functionality.
+2. Build a static version of the app
+Our bottom-level (user-visible) components rendered HTML based on static props, passed down from parents.
+3. Determine what should be stateful
+We used a series of questions to deduce what data should be stateful. This data
+was represented in our static app as props.
+4. Determine in which component each piece of state should live
+We used another series of questions to determine which component should own
+each piece of state. TimersDashboard owned timer state data and ToggleableTimerForm and EditableTimer both held state pertaining to whether or not to render a TimerForm.
+5. Hard-code initial states
+We then initialized state-owners’ state properties with hard-coded values.
+6. Add inverse data flow
+We added interactivity by decorating buttons with onClick handlers. These called functions that were passed in as props down the hierarchy from whichever component owned the relevant state being manipulated.
+7. The final step is 7. Add server communication. We’ll tackle this in the next chapter.
+
+---
