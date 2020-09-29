@@ -531,3 +531,31 @@ page.
 title is kept in-sync with what the user sees on the page.
 
 ---
+
+#### #6.1. [STEP 6]: ADD INVERSE DATA FLOW
+
+We are going to need inverse data flow in two areas:
+- **TimerForm** needs to propagate create and update events (create while under ToggleableTimerForm and update while under EditableTimer). 
+- Both events will eventually reach **TimersDashboard**.
+- **Timer** has a fair amount of behavior. It needs to handle delete and edit clicks, as well as the start and stop timer logic.
+
+##### TimerForm
+- **TimerForm** needs two event handlers:
+  1. When the form is submitted (creating or updating a timer) 
+  2. When the “Cancel” button is clicked (closing the form)
+
+- **TimerForm** will receive two functions as props to handle each event. The parent component that uses TimerForm is responsible for providing these functions:
+  1. props.onFormSubmit(): called when the form is submitted
+  2. props.onFormClose(): called when the “Cancel” button is clicked
+
+##### ToggableTimerForm
+- First, we’ll modify ToggleableTimerForm. 
+- We need it to pass down two prop-functions to TimerForm, **onFormClose()** and **onFormSubmit()**:
+
+##### ToggableTimerForm
+- The first event we’re concerned with is the submission of a form. 
+- When this happens, either a new timer is being created or an existing one is being updated. 
+- We’ll use two separate functions to handle the two distinct events:
+  1. handleCreateFormSubmit() will handle creates and will be the function passed to ToggleableTimerForm
+  2. handleEditFormSubmit() will handle updates and will be the function passed to EditableTimerList
+- Both functions travel down their respective component hierarchies until they reach TimerForm as the prop onFormSubmit().
