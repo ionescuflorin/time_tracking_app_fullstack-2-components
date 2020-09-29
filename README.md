@@ -308,3 +308,38 @@ class TimersDashboard extends React.Component {
   - The list of timers and properties of each timer
   - Whether or not the edit form of a timer is open 
   - Whether or not the create form is open
+
+---
+
+#### #4.1. [STEP 4]: DETERMINE IN WHICH COMPONENT EACH PIECE OF STATE SHOULD LIVE
+
+- We can apply the following steps from Facebook’s guide “Thinking in React35” to help us with the process:
+- For each piece of state:
+  1. Identify every component that renders something based on that state.
+  2. Find a common owner component (a single component above all the
+components that need the state in the hierarchy).
+  3. Either the common owner or another component higher up in the
+hierarchy should own the state.
+  4. If you can’t find a component where it makes sense to own the state,
+create a new component simply for holding the state and add it somewhere in the hierarchy above the common owner component.
+
+##### The list of timers and properties of each timer
+- Therefore, **TimersDashboard** is truly the **common owner**. 
+- It will render **EditableTimerList** by passing down the timer state. 
+- It can handle modifications from **EditableTimerList** and creates from **ToggleableTimerForm**, mutating the state. 
+- The new state will flow downward through **EditableTimerList**.
+
+##### Whether or not the edit form of a timer is open
+- In our static app, **EditableTimerList** specifies whether or not an EditableTimer should be rendered with its edit form open. 
+- Technically, though, this state could just live in each individual EditableTimer. No parent component in the hierarchy depends on this data.
+- Storing the state in EditableTimer will be fine for our current needs. But there are a few requirements that might require us to “hoist” this state up higher in the component hierarchy in the future.
+- For instance, what if we wanted to impose a restriction such that only one edit form could be open at a time? Then it would make sense for EditableTimerList to own the state, as it would need to inspect it to determine whether to allow a new “edit form open” event to succeed. 
+- If we wanted to allow only one form open at all, including the create form, then we’d hoist the state up to TimersDashboard.
+
+##### Visibility of the create form
+- TimersDashboard doesn’t appear to care about whether ToggleableTimerForm is open or closed. It feels safe to reason that the state can just live inside ToggleableTimerForm itself.
+  
+**So, in summary, we’ll have three pieces of state each in three different components:**
+- **Timer** data will be owned and managed by **TimersDashboard**.
+- Each **EditableTimer** will manage the state of its timer edit form.
+- The **ToggleableTimerForm** will manage the state of its form visibility.
