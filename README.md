@@ -343,3 +343,191 @@ create a new component simply for holding the state and add it somewhere in the 
 - **Timer** data will be owned and managed by **TimersDashboard**.
 - Each **EditableTimer** will manage the state of its timer edit form.
 - The **ToggleableTimerForm** will manage the state of its form visibility.
+
+---
+
+#### #5.1. [STEP 5]: HAR-CODE INITIAL STATES
+
+##### Adding state to TimerDashboard
+```javascript
+class TimersDashboard extends React.Component {
+  state = {
+    timers: [
+      {
+        title: 'Practice squat',
+        project: 'Gym Chores',
+        id: uuid.v4(),
+        elapsed: 5456099,
+        runningSince: Date.now(),
+      },
+      {
+        title: 'Bake squash',
+        project: 'Kitchen Chores',
+        id: uuid.v4(),
+        elapsed: 1273998,
+        runningSince: null,
+      },
+    ],
+  };
+  render() {
+    return (
+      <div className="ui three column centered grid">
+        {' '}
+        <div className="column">
+          <EditableTimerList timers={this.state.timers} />
+          <ToggleableTimerForm />
+        </div>
+      </div>
+    );
+  }
+}
+```
+
+##### Receiving props in EditableTimerList
+```javascript
+class EditableTimerList extends React.Component {
+  render() {
+    const timers = this.props.timers.map((timer) => (
+      <EditableTimer
+        key={timer.id}
+        id={timer.id}
+        title={timer.title}
+        project={timer.project}
+        elapsed={timer.elapsed}
+        runningSince={timer.runningSince}
+      />
+    ));
+    return <div id="timers"> {timers}</div>;
+  }
+}
+```
+
+##### Adding state to EditableTimer
+```javascript
+class EditableTimer extends React.Component {
+  state = {
+    editFormOpen: false,
+  };
+  render() {
+    if (this.state.editFormOpen) {
+      return (
+        <TimerForm
+          id={this.props.id}
+          title={this.props.title}
+          project={this.props.project}
+        />
+      );
+    } else {
+      return (
+        <Timer
+          id={this.props.id}
+          title={this.props.title}
+          project={this.props.project}
+          elapsed={this.props.elapsed}
+          runningSince={this.props.runningSince}
+        />
+      );
+    }
+  }
+}
+```
+
+##### Timer remains stateless
+
+##### Adding state to ToggableTimerForm
+```javascript
+class ToggleableTimerForm extends React.Component {
+  state = {
+    isOpen: false,
+  };
+
+  handleFormOpen = () => {
+    this.setState({ isOpen: true });
+  };
+
+  render() {
+    if (this.state.isOpen) {
+      return (
+        <TimerForm />
+      );
+    } else {
+      return (
+        <div className='ui basic content center aligned segment'>
+          <button
+            className='ui basic button icon'
+            onClick={this.handleFormOpen}
+          >
+            <i className='plus icon' />
+          </button>
+        </div>
+      );
+    }
+  }
+}
+```
+
+##### Adding state to TimerForm
+```javascript
+class TimerForm extends React.Component {
+  state = {
+    title: this.props.title || '',
+    project: this.props.project || '',
+  };
+
+  handleTitleChange = (e) => {
+    this.setState({ title: e.target.value });
+  };
+
+  handleProjectChange = (e) => {
+    this.setState({ project: e.target.value });
+  };
+
+  render() {
+    const submitText = this.props.title ? 'Update' : 'Create';
+    return (
+      <div className='ui centered card'>
+        <div className='content'>
+          <div className='ui form'>
+            <div className='field'>
+              <label>Title</label>
+              <input
+                type='text'
+                value={this.state.title}
+                onChange={this.handleTitleChange}
+              />
+            </div>
+            <div className='field'>
+              <label>Project</label>
+              <input
+                type='text'
+                value={this.state.project}
+                onChange={this.handleProjectChange}
+              />
+            </div>
+            <div className='ui two bottom attached buttons'>
+              <button className='ui basic blue button'>
+                {submitText}
+              </button>
+              <button className='ui basic red button'>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+```
+
+To recap, here’s an example of the lifecycle of TimerForm:
+1. On the page is a timer with the title “Mow the lawn.”
+2. The user toggles open the edit form for this timer, mounting TimerForm to the
+page.
+3. TimerForm initializes the state property title to the string "Mow the lawn".
+4. The user modifies the input field, changing it to the value "Cut the grass".
+5. With every keystroke, React invokes handleTitleChange. The internal state of
+title is kept in-sync with what the user sees on the page.
+
+---
