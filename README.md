@@ -647,3 +647,228 @@ We added interactivity by decorating buttons with onClick handlers. These called
 7. The final step is 7. Add server communication. We’ll tackle this in the next chapter.
 
 ---
+
+#### #7.1. [STEP 7]: COMPONENTS & SERVERS / Add server communication
+
+##### Introduction
+- At the moment, TimersDashboard has a hard-coded initial state. 
+- Any mutations to the state will only live as long as the browser window is open. 
+- That’s because all state changes are happening in-memory inside of React. 
+- We need our React app to communicate with a server. The server will be in charge of persisting the data. 
+- In this app, data persistence happens inside of a file, data.json.
+
+##### Preparation (server.js)
+- We’ll use a tool called **CURL** to make more involved r**equests from the command line**.
+- OS X users should already have curl installed.
+- Windows users can download and install curl here: https://curl.haxx.se/download.html37.
+- **server.js** uses the file data.json as its “store.” 
+- The server will read and write to this file to persist data. 
+- You can take a look at that file to see the initial state of the store that we’ve provided.
+- **server.js** will return the contents of data.json when asked for all items. 
+- When notified, the server will reflect any updates, deletes, or timer stops and starts in data.json. This is how data will be persisted even if the browser is reloaded or closed.
+
+##### The Server API
+- If we perform an operation on the React (“client”) state that we want to be persisted, then we also need to notify the server of that state change. This will keep the two states in sync. We’ll consider these our “write” operations. The write operations we want to send to the server are:
+  - A timer is created • A timer is updated • A timer is deleted • A timer is started
+  - A timer is stopped
+- We’ll have just one read operation: requesting all of the timers from the server.
+
+- **GET /api/timers**
+  - Returns a list of all timers.
+- **POST /api/timers**
+  - Accepts a JSON body with title, project, and id attributes. Will insert a new timer object into its store.
+- **POST /api/timers/start**
+  - Accepts a JSON body with the attribute id and start (a timestamp). Hunts through its store and finds the timer with the matching id. Sets its runningSince to start.
+- **POST /api/timers/stop**
+  - Accepts a JSON body with the attribute id and stop (a timestamp). Hunts through its store and finds the timer with the matching id. Updates elapsed according to how long the timer has been running (stop - runningSince). Sets runningSince to null.
+- **PUT /api/timers**
+  - Accepts a JSON body with the attributes id and title and/or project. Hunts through its store and finds the timer with the matching id. Updates title and/or project to new attributes.
+- **DELETE /api/timers**
+  - Accepts a JSON body with the attribute id. Hunts through its store and deletes the timer with the matching id.
+
+##### Playing with the API
+- We can only easily use the browser to make GET requests. For writing data — like starting and stopping timers — we’ll have to make POST, PUT, or DELETE requests. We’ll use curl to play around with writing data.
+- Run the following command from the command line:
+```
+$ curl -X GET localhost:3000/api/timers
+```
+- The -X flag specifies which HTTP method to use. It should return a response that
+looks a bit like this:
+- You can start one of the timers by issuing a PUT request to the /api/timers/start endpoint. We need to send along the id of one of the timers and a start timestamp:
+```
+$ curl -X POST \
+-H 'Content-Type: application/json' \
+-d '{"start":1456468632194,"id":"a73c1d19-f32d-4aff-b470-cea4e792406a"}\ '\
+localhost:3000/api/timers/start
+```
+- The -H flag sets a header for our HTTP request, Content-Type. We’re informing the server that the body of the request is JSON.
+- The -d flag sets the body of our request. Inside of single-quotes '' is the JSON data.
+  
+> Tool tip: jq macOS and Linux users: If you want to parse and process JSON on the command line, we highly recommend the tool “jq.”
+>
+> You can pipe curl responses directly into jq to have the response pretty-formatted: 
+> 
+> curl -X GET localhost:3000/api/timers | jq '.'
+> 
+> You can also do some powerful manipulation of JSON, like iterating over all objects in the response and returning a particular field. In this example, we extract just the id property of every object in an array:
+> 
+> curl -X GET localhost:3000/api/timers | jq '.[] | { id }' \
+> You can download jq here: https://stedolan.github.io/jq/.
+
+##### Loading state from the server
+- The **GET /api/timers** endpoint provides a list of all timers, as represented in data.json. 
+- We can use **client.getTimers()** to call this endpoint from our React app. We’ll do this to “hydrate” the state kept by TimersDashboard.
+- When we call **client.getTimers()**, the network request is made asynchronously. The function call itself is not going to return anything useful:
+- Instead, we can pass getTimers() a success function. 
+- **getTimers()** will invoke that function after it hears back from the server if the server successfully returned a result. 
+- **getTimers()** will invoke the function with a single argument, the list of timers returned by the server:
+```
+// Passing `getTimers()` a success function
+client.getTimers((serverTimers) => (
+// do something with the array of timers, `serverTimers`
+));
+```
+
+> **client.getTimers()** uses the Fetch API, which we cover in the next section. For our purposes, the important thing to know is that when getTimers() is invoked, it fires off the request to the server and then returns control flow immediately. The execution of our program does not wait for the server’s response. This is why getTimers() is called an asynchronous function.
+> 
+> The success function we pass to getTimers() is called a callback. We’re saying: “When you finally hear back from the server, if it’s a successful response, invoke this function.” This asynchronous paradigm ensures that execution of our JavaScript is not blocked by I/O.
+
+##### A timeline is the best medium for illustrating what happens:
+1. **Before initial render**
+- React initializes the component. state is set to an object with the property
+timers, a blank array, is returned.
+2. **The initial render**
+- React then calls render() on TimersDashboard. In order for the render to complete, EditableTimerList and ToggleableTimerForm — its two children — must be rendered.
+3. **Children are rendered**
+- EditableTimerList has its render method called. Because it was passed a blank data array, it simply produces the following HTML output:
+```
+<div id='timers'> </div>
+```
+- ToggleableTimerForm renders its HTML, which is the “+” button.
+4. **Initial render is finished**
+- With its children rendered, the initial render of TimersDashboard is finished
+and the HTML is written to the DOM.
+5. **componentDidMount is invoked**
+- Now that the component is mounted, componentDidMount() is called on TimersDashboard.
+- This method calls loadTimersFromServer(). In turn, that function calls client.getTimers() That will make the HTTP request to our server, requesting the list of timers.
+- When client hears back, it invokes our success function.
+- On invocation, the success function is passed one argument, serverTimers. 
+- This is the array of timers returned by the server. We then call setState(), which will trigger a new render. 
+- The new render populates our app with EditableTimer children and all of their children. 
+- The app is fully loaded and at an imperceptibly fast speed for the end user.
+- We also do one other interesting thing in componentDidMount. We use setInterval() to ensure loadTimersFromServer() is called every 5 seconds. 
+
+
+##### Fetch
+- Until Fetch, JavaScript developers had two options for making web requests: 
+1. Use **XMLHttpRequest** which is supported natively in all browsers 
+2. Import a library that provides a wrapper around it (like **jQuery’s ajax()**). Fetch provides a better interface than XMLHttpRequest
+
+- As we can see in client.getTimers(), **fetch()** accepts two arguments:
+1. The path to the resource we want to fetch
+2. An object of request parameters
+
+- By default, Fetch makes a GET request, so we’re telling Fetch to make a **GET request** to **/api/timers**. 
+- We also pass along one parameter: headers, the HTTP headers in our request. 
+- We’re telling the server we’ll accept only a JSON response.
+- Attached to the end of our call to fetch(), we have a chain of .then() statements:
+```
+}).then(checkStatus) 
+  .then(parseJSON) 
+  .then(success);
+```
+
+- To understand how this works, let’s first review the functions that we pass to each .then() statement:
+1. **checkStatus()**: This function is defined inside of client.js. It checks if the server returned an error. If the server returned an error, checkStatus() logs the error to the console.
+2. **parseJSON()**: This function is also defined inside of client.js. It takes the response object emitted by fetch() and returns a JavaScript object.
+3. **success()**: This is the function we pass as an argument to getTimers(). getTimers() will invoke this function if the server successfully returned a response.
+- Fetch returns a **promise**. While we won’t go into detail about promises, as you can see here a promise allows you to chain .then() statements. We pass each .then() statement a function.
+
+- At each stage of the pipeline, the result of the previous statement is passed as the argument to the next one:
+1. When **checkStatus()** is invoked, it’s passed a Fetch response object that **fetch()** returns.
+2. **checkStatus()**, after verifying the response, returns the same response object.
+3. **parseJSON()** is invoked and passed the response object returned by checkStatus(). 
+4. **parseJSON()** returns the JavaScript array of timers returned by the server.
+5. **success()** is invoked with the array of timers returned by parseJSON().
+
+
+- We just looked at **getTimers()** which demonstrates reading from the server. We’ll look at one more function, one that writes to the server.
+- **startTimer()** makes a POST request to the **/api/timers/start** endpoint. 
+- The server needs the id of the timer and the start time. That request method looks like:
+```javascript
+function startTimer(data) {
+    return fetch('/api/timers/start', {
+      method: 'post',
+      body: JSON.stringify(data), 
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json', },
+}).then(checkStatus); }
+```
+- In addition to headers, the request parameters object that we pass to fetch() has two more properties:
+```javascript
+method: 'post',
+body: JSON.stringify(data),
+```
+
+Those are:
+- **method**: The HTTP request method. fetch() defaults to a GET request, so we specify we’d like a POST here.
+- **body**: The body of our HTTP request, the data we’re sending to the server.
+- **startTimer()** expects an argument, **data**. 
+- This is the object that will be sent along in the body of our request. It contains the properties **id** and **start**. 
+- An invocation of startTimer() might look like this:
+```javascript
+// Example invocation of `startTimer()`
+startTimer(
+  {
+    id: "bc5ea63b-9a21-4233-8a76-f4bca9d0a042",
+    start: 1455584369113,
+  }
+);
+
+//In this example, the body of our request to the server will look like this:
+{
+  "id": "bc5ea63b-9a21-4233-8a76-f4bca9d0a042", 
+  "start": 1455584369113
+}
+```
+
+##### Sending starts and stops to the server
+- We can use the methods startTimer() and stopTimer() on client to make calls to the appropriate endpoints on the server. We just need to pass in an object that includes the id of the timer as well as the time it was started/stopped:
+```javascript
+client.startTimer(
+  { id: timerId, start: now }
+);
+client.stopTimer(
+  { id: timerId, stop: now }
+);
+
+```
+
+- You might ask: Why do we still manually make the state change within React? Can’t we just inform the server of the action taken and then update state based on the server, the source of truth? Indeed, the following implementation is valid:
+```javascript
+startTimer: function (timerId) { 
+    const now = Date.now();
+
+    client.startTimer(
+      { id: timerId, start: now }
+  ).then(loadTimersFromServer); 
+},
+```
+- We can chain a .then() to startTimer() as that function returns our original promise object. The last stage of the startTimer() pipeline would then be invoking the function loadTimersFromServer(). So immediately after the server processes our start timer request, we would make a subsequent request asking for the latest list of timers. This response would contain the now-running timer. React’s state updates and the running timer would then be reflected in the UI.
+- Again, this is valid. However, the user experience will leave something to be desired. Right now, clicking the start/stop button gives instantaneous feedback because the state changes locally and React immediately re-renders. If we waited to hear back from the server, there might be a noticeable delay between the action (mouse click) and the response (timer starts running). You can try it yourself locally, but the delay would be most noticeable if the request had to go out over the internet.
+- What we’re doing here is called **optimistic updating**. We’re updating the client locally before waiting to hear from the server. This duplicates our state update efforts, as we perform updates on both the client and the server. But it makes our app as responsive as possible.
+
+> The “optimism” we have here is that the request will succeed and not fail with an error.
+
+- Using the same pattern as we did with starts and stops, see if you can implement creates, updates, and deletes on your own. Come back and compare your work with the next section.
+
+> Optimistic updating: Validations
+> 
+> Whenever we optimistic update, we always try to replicate whatever restrictions the server would have. This way, our client state changes under the same conditions as our server state.
+> 
+> For example, imagine if our server enforced that a timer’s title cannot contain symbols. But the client did not enforce such a restriction. What would happen?
+> 
+> A user has a timer named Gardening. He feels a bit cheeky and renames it Gardening :P. The UI immediately reflects his changes, displaying Gardening :P as the new name of the timer. Satisfied, the user is about to get up and grab his shears. But wait! His timer’s name suddenly snaps back to Gardening.
+> 
+> To successfully pull off eager updating, we must diligently replicate the code that manages state changes on both the client and the server. Furthermore, in a production app we should surface any errors the request to the server returns in the event that there is an inconsistency in the code or a fluke (the server is down).
